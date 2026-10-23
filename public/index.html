@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3a130c">
+<title>Bakers Delight</title>
+<link rel="icon" type="image/png" href="/favicon.png"><link rel="apple-touch-icon" href="/favicon.png">
+<style>
+:root{--wood:#3a130c;--wood2:#5a1f14;--gold:#e09a3a;--gold2:#a85a14;--cream:#fbf3e4;--paper:#fffaf0;--ink:#2b1a14;--mute:#7b6657;--line:#ead9bd;--red:#b3392b;color-scheme:light;box-sizing:border-box}
+*{box-sizing:inherit}html,body{margin:0;min-height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:transparent;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+h2,h3,.brand{font-family:Georgia,"Times New Roman",serif;margin:0}
+h2{font-size:1.6rem;color:var(--wood2)}h2::after{content:"";display:block;width:64px;height:3px;border-radius:2px;background:var(--gold);margin:6px 0 14px}
+button{font:inherit;cursor:pointer;border:0;border-radius:9px;padding:9px 15px;background:var(--wood2);color:#fff}
+button:hover:not(:disabled){filter:brightness(1.1)}
+button.alt{background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+button.gold{background:var(--gold);color:#2a1a00;font-weight:700}
+button.del{background:transparent;color:var(--red);border:1px solid var(--red)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button{transition:transform .08s,filter .15s,background .15s;touch-action:manipulation}
+button:active:not(:disabled){transform:scale(.94);filter:brightness(.92)}
+button.busy{pointer-events:none;opacity:.7}
+button.sel{background:#2f7d4f;color:#fff;border-color:#2f7d4f;opacity:1}
+.ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;border:2px solid var(--line);background:var(--cream)}
+.sm{padding:6px 10px;font-size:.85rem}
+.hint{color:var(--mute);font-size:.82rem}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);min-width:0}
+/* animated bakery background (all screens) */
+#bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:var(--cream) radial-gradient(#ecd3ad 1.2px,transparent 1.8px) 0 0/26px 26px;transition:background-color .6s}
+#bg::before,#bg::after{content:"";position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(60px);opacity:.35;animation:blob 22s ease-in-out infinite alternate}
+#bg::before{left:-20vmax;top:-20vmax;background:#f6c77a}
+#bg::after{right:-25vmax;bottom:-25vmax;background:#e8a06a;animation-delay:-11s}
+#bg.dark{background:#3a130c}
+#bg.dark::before{background:#9a4a22;opacity:.55}#bg.dark::after{background:#c0621a;opacity:.4}
+#bg span{position:absolute;bottom:-14vh;left:var(--x);font-size:var(--s);opacity:.16;animation:rise var(--d) linear var(--dl) infinite;will-change:transform}
+#bg.dark span{opacity:.22}
+@keyframes rise{0%{transform:translate3d(0,0,0) rotate(0)}25%{transform:translate3d(28px,-30vh,0) rotate(90deg)}50%{transform:translate3d(-24px,-62vh,0) rotate(190deg)}75%{transform:translate3d(24px,-92vh,0) rotate(280deg)}100%{transform:translate3d(0,-125vh,0) rotate(360deg)}}
+@keyframes blob{to{transform:translate(18vmax,14vmax) scale(1.25)}}
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:20px;position:relative;overflow:hidden;z-index:1}
+.box{position:relative;width:100%;max-width:400px;background:var(--paper);border-radius:18px;padding:30px 28px;display:grid;gap:12px;border:3px double var(--gold);box-shadow:0 25px 70px #0008}
+.logo{display:block;width:230px;max-width:80%;height:auto;margin:-6px auto 0}
+.box h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.tag-line{display:none}
+.err{color:var(--red);min-height:1.2em;font-size:.9rem;text-align:center}
+/* app */
+#app{display:none;flex-direction:column;min-height:100vh;position:relative;z-index:1}
+header{background:linear-gradient(135deg,var(--wood),var(--wood2));color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:5;border-bottom:3px solid var(--gold)}
+.brand{font-size:1.35rem;flex:1;display:flex;align-items:center;gap:10px}
+.brand img{height:50px;width:50px;object-fit:contain;border-radius:50%;background:var(--paper);border:2px solid var(--gold);padding:2px}
+.pill{background:var(--gold);color:#2a1a00;border-radius:99px;padding:4px 13px;font-size:.85rem;font-weight:700}
+nav{display:flex;gap:8px;padding:14px 18px 0;overflow-x:auto}
+nav button{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:99px;white-space:nowrap}
+nav button.on{background:var(--wood2);color:var(--gold);border-color:var(--wood2);font-weight:700}
+main{padding:18px 18px 50px;max-width:1100px;width:100%;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 3px 10px #5b2c1f14}
+.dish{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px}
+.dish .em{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:2.4rem;background:radial-gradient(#fff,#f3e0b8);border:3px double var(--gold)}
+.nm{font-family:Georgia,serif;font-weight:700;font-size:1.05rem;color:var(--wood2)}
+.price{font-weight:800;color:var(--gold2);font-size:1.1rem}
+.off{opacity:.55}
+.tag{font-size:.75rem;border-radius:99px;padding:2px 10px;background:#e3f2e6;color:#25693f;width:fit-content}.tag.no{background:#f8dfda;color:var(--red)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dish .row{justify-content:center}
+.split{display:grid;grid-template-columns:1fr 330px;gap:18px}@media(max-width:800px){.split{grid-template-columns:1fr}}
+.cart{position:sticky;top:84px;align-self:start;border-top:4px solid var(--gold)}
+.line{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.total{font-family:Georgia,serif;font-size:1.35rem;display:flex;justify-content:space-between;margin:12px 0;color:var(--wood2)}
+.form{display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px;margin-bottom:12px}@media(max-width:600px){.form{grid-template-columns:1fr}}
+.st{font-weight:700;border-radius:99px;padding:3px 11px;font-size:.78rem;white-space:nowrap}
+.Pending{background:#fdf0d0;color:#8a5d00}.Preparing{background:#dde9fb;color:#1c4f9c}.Ready{background:#dcf3e5;color:#1f7a4a}.Received{background:#ece4fa;color:#5b3a9c}.Served{background:#e5e8e6;color:#44524b}
+.empty{text-align:center;color:var(--mute);padding:40px 10px;grid-column:1/-1}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--wood);color:#fff;padding:12px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .25s;border:2px solid var(--gold);z-index:9;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+/* bill printing: only #bill is visible when printing */
+#bill{display:none}
+@media print{
+  @page{size:80mm auto;margin:0}
+  html,body{background:#fff!important;padding:0!important;margin:0!important;min-height:0!important}
+  body>*:not(#bill){display:none!important}
+  #bill{display:block!important;width:74mm;margin:0 auto;padding:4mm 0;font:12px/1.4 "Courier New",monospace;color:#000}
+  #bill h1{font:700 18px "Courier New",monospace;text-align:center;margin:0;color:#000}
+  #bill .c{text-align:center}#bill .hr{border-top:1px dashed #000;margin:6px 0}
+  #bill table{width:100%;border-collapse:collapse}#bill td{padding:2px 0;vertical-align:top}
+  #bill .r{text-align:right}#bill .b td{font-weight:bold;font-size:14px}
+}
+.sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.sum .card{padding:10px 16px}.sum b{font-size:1.2rem;color:var(--wood2)}
+/* font animations */
+@keyframes drop{from{opacity:0;transform:translateY(-26px) scale(.6)}to{opacity:1;transform:none}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes tint{0%,100%{color:var(--wood2)}50%{color:#d08a14}}
+@keyframes glow{0%,100%{text-shadow:0 0 0 transparent}50%{text-shadow:0 0 12px var(--gold),0 0 2px #fff6}}
+@keyframes spread{from{letter-spacing:.02em;opacity:0}to{letter-spacing:.18em;opacity:1}}
+@keyframes pulse{50%{opacity:.55}}
+.wave span{display:inline-block}
+.brand .wave span{animation:drop .6s cubic-bezier(.2,1.4,.4,1) calc(var(--i)*60ms) both,glow 3.5s ease-in-out calc(var(--i)*180ms + 1.2s) infinite}
+@keyframes pop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}.logo{animation:pop .7s cubic-bezier(.2,1.4,.4,1) both}
+.Pending,.Preparing{animation:pulse 1.8s ease-in-out infinite}
+.price{transition:transform .2s}.dish:hover .price{transform:scale(1.12)}
+.nm{transition:letter-spacing .25s}.dish:hover .nm{letter-spacing:.04em}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="bg" class="dark" aria-hidden="true"></div>
+<section id="login"><form class="box" id="lf">
+  <img class="logo" src="/logo.png" alt="Bakers Delight – Fresh bakes, sweet moments"><h1>Bakers Delight</h1>
+  <input id="em" type="email" placeholder="Email" autocomplete="username" required>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password" required>
+  <button class="gold" id="lb">Sign in</button><div class="err" id="le"></div>
+</form></section>
+
+<div id="app">
+  <header><span class="brand"><img src="/logo.png" alt=""><b class="wave">Bakers Delight</b></span><span class="pill" id="who"></span><button class="alt" id="out" style="background:transparent;color:#fff;border-color:#fff5">Sign out</button></header>
+  <nav id="nav"></nav><main id="view"></main>
+</div>
+<div id="bill"></div>
+<input type="file" id="imgf" accept="image/*" hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const NAMES={admin:'Admin',salesperson:'Salesperson',chef:'Chef'};
+const PERM={admin:{menu:1,live:1,history:1,bill:1},salesperson:{select:1,submit:1,mine:1,bill:1},chef:{status:1,kitchen:1}};
+let me=null,tab='',menu=[],orders=[],cart={},chan=null,newImg=null,imgTarget=null,tmpN=0;
+const can=f=>me&&PERM[me.role][f];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr=n=>'₹'+Number(n).toLocaleString('en-IN');
+const when=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+const whenFull=t=>new Date(t).toLocaleDateString([],{day:'2-digit',month:'short',year:'numeric'})+' '+when(t);
+const tot=o=>o.items.reduce((s,i)=>s+i.price*i.q,0);
+
+/* ---------- notifications ---------- */
+let actx;
+function beep(){try{actx=actx||new AudioContext();const o=actx.createOscillator(),g=actx.createGain();o.connect(g);g.connect(actx.destination);o.frequency.value=880;g.gain.setValueAtTime(.2,actx.currentTime);g.gain.exponentialRampToValueAtTime(.001,actx.currentTime+.5);o.start();o.stop(actx.currentTime+.5)}catch(e){}}
+function notify(msg){
+  const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(notify.t);notify.t=setTimeout(()=>t.classList.remove('show'),3500);
+  beep();try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}
+  try{if('Notification' in window&&Notification.permission==='granted'&&document.hidden)new Notification('Bakers Delight',{body:msg})}catch(e){}
+}
+
+/* ---------- auth ---------- */
+let token=localStorage.getItem('tk'),socket;
+async function api(m,u,b){
+  const r=await fetch('/api'+u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:b?JSON.stringify(b):undefined});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Request failed');return d}
+$('#lf').onsubmit=async e=>{
+  e.preventDefault();$('#le').textContent='';$('#lb').disabled=true;
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(_){}
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('#em').value.trim(),password:$('#pw').value})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not sign in');
+    token=d.token;localStorage.setItem('tk',token);await enter(d.user);
+  }catch(x){$('#le').textContent=x.message}
+  $('#lb').disabled=false};
+$('#out').onclick=()=>{if(socket)socket.disconnect();localStorage.removeItem('tk');token=null;me=null;$('#app').style.display='none';$('#login').style.display='grid';$('#bg').classList.add('dark')};
+async function enter(u){
+  me=u;cart={};
+  $('#login').style.display='none';$('#app').style.display='flex';$('#bg').classList.remove('dark');$('#who').textContent=NAMES[u.role];
+  await Promise.all([loadMenu(),loadOrders()]);
+  tab=tabs()[0][0];render();connect();
+}
+const tabs=()=>[can('menu')&&['menu','Manage menu'],can('live')&&['live','Ongoing orders'],can('history')&&['history','Order history'],can('select')&&['order','Take order'],can('mine')&&['mine','My orders'],can('kitchen')&&['kitchen','Kitchen orders']].filter(Boolean);
+
+/* ---------- data + realtime ---------- */
+async function loadMenu(){menu=await api('GET','/menu')}
+async function loadOrders(){orders=await api('GET','/orders')}
+function connect(){
+  if(socket)socket.disconnect();
+  socket=io({auth:{token}});
+  socket.on('connect',async()=>{await loadOrders();await loadMenu();keep()});
+  socket.on('menu:changed',async()=>{await loadMenu();keep()});
+  socket.on('orders:changed',async()=>{await loadOrders();keep()});
+  socket.on('order:new',o=>{
+    if(orders.some(x=>x.id===o.id))return;
+    if(o.created_by===me.id){const k=orders.findIndex(x=>x.tmp&&x.table_no===o.table_no);if(k>=0)orders.splice(k,1)}
+    orders.unshift(o);
+    if(me.role==='chef'&&o.created_by!==me.id)notify(`🔔 New order · Table ${o.table_no}`);
+    keep()});
+  socket.on('order:status',o=>{
+    const i=orders.findIndex(x=>x.id===o.id),old=i>=0?orders[i]:null;
+    if(i>=0)orders[i]=o;else orders.unshift(o);
+    if(old&&old.status!==o.status&&o.changed_by!==me.id&&me.role!=='admin')notify(statusMsg(o));
+    keep()});
+}
+function keep(){if(!me)return;const ids=['tbl'],saved={},ae=document.activeElement;
+  document.querySelectorAll('#tbl,#addf [name]').forEach(e=>saved[e.id||'f_'+e.name]=e.value);const fid=ae&&(ae.id||(ae.form&&ae.form.id==='addf'?'f_'+ae.name:''));
+  render();
+  document.querySelectorAll('#tbl,#addf [name]').forEach(e=>{const k=e.id||'f_'+e.name;if(saved[k]!==undefined)e.value=saved[k];if(k===fid){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}})}
+
+/* ---------- views ---------- */
+function render(){
+  $('#nav').innerHTML=tabs().map(([k,l])=>`<button class="${k===tab?'on':''}" data-t="${k}">${l}</button>`).join('');
+  $('#nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+  $('#view').innerHTML=tab==='menu'?menuView():tab==='order'?orderView():tab==='mine'?ordersView(orders.filter(o=>o.created_by===me.id),'My orders'):tab==='live'?ordersView(orders.filter(o=>o.status!=='Served'),'Ongoing orders'):tab==='history'?historyView():ordersView(me.role==='chef'?orders.filter(o=>['Pending','Preparing','Ready'].includes(o.status)):orders,'Kitchen orders');
+  bind();
+}
+const pic=m=>m.image_v?`<img class="ph" loading="lazy" src="/api/menu/${m.id}/image?v=${m.image_v}" alt="${esc(m.name)}">`:`<div class="em">${esc(m.emoji||'🥐')}</div>`;
+function menuView(){return `<h2 style="margin-bottom:12px">Menu</h2>
+ <form class="form" id="addf"><input name="n" placeholder="Dish name" required maxlength="40"><input name="p" type="number" min="1" step="any" placeholder="Price (₹)" required><button class="gold">Add dish</button></form>
+ <div class="bar" style="margin-top:-4px"><button type="button" class="alt sm" id="newph">📷 ${newImg?'Change photo':'Add photo for new dish'}</button>${newImg?`<img src="${newImg.url}" alt="" style="height:38px;border-radius:8px"><button type="button" class="del sm" id="newphx">✕</button>`:'<span class="hint">Optional – you can also add a photo later.</span>'}</div>
+ <div class="bar"><button class="alt" id="xl">⬆ Upload Excel</button><button class="alt" id="tp">⬇ Download template</button><input id="xf" type="file" accept=".xlsx,.xls,.csv" hidden></div>
+ <div class="grid">${menu.map(m=>`<div class="card dish ${m.available?'':'off'}">${pic(m)}<div class="nm">${esc(m.name)}</div><div class="price">${inr(m.price)}</div>
+  <span class="tag ${m.available?'':'no'}">${m.available?'Available':'Sold out'}</span>
+  <div class="row"><button class="alt" data-a="tog" data-id="${m.id}">${m.available?'Mark sold out':'Mark available'}</button><button class="alt" data-a="edit" data-id="${m.id}">Edit</button><button class="del" data-a="del" data-id="${m.id}">Delete</button></div>
+  <div class="row"><button class="alt sm" data-a="photo" data-id="${m.id}">📷 ${m.image_v?'Change photo':'Add photo'}</button>${m.image_v?`<button class="del sm" data-a="rmphoto" data-id="${m.id}">Remove photo</button>`:''}</div></div>`).join('')||'<div class="empty">No dishes yet. Add one above or upload an Excel file.</div>'}</div>`}
+function orderView(){
+  const items=menu.filter(m=>m.available);
+  const lines=Object.entries(cart).filter(([,q])=>q>0).map(([id,q])=>({m:menu.find(x=>x.id==id),q})).filter(l=>l.m);
+  const tot=lines.reduce((s,l)=>s+l.m.price*l.q,0);
+  return `<div class="split"><div><h2 style="margin-bottom:12px">Select dishes</h2><div class="grid">${items.map(m=>`<div class="card dish">${pic(m)}<div class="nm">${esc(m.name)}</div><div class="price">${inr(m.price)}</div>
+   <div class="row"><button class="alt" data-a="dec" data-id="${m.id}" aria-label="Decrease">−</button><b>${cart[m.id]||0}</b><button data-a="inc" data-id="${m.id}" aria-label="Increase">+</button></div></div>`).join('')||'<div class="empty">No dishes are available right now.</div>'}</div></div>
+  <aside class="card cart"><h3>Current order</h3><div style="margin:10px 0">${lines.map(l=>`<div class="line"><span>${l.q} × ${esc(l.m.name)}</span><span>${inr(l.m.price*l.q)}</span></div>`).join('')||'<div class="empty" style="padding:16px 0">Tap + on a dish to start.</div>'}</div>
+  <input id="tbl" type="text" placeholder="Table number" style="width:100%" maxlength="10"><div class="total"><span>Total</span><span>${inr(tot)}</span></div>
+  <button class="gold" id="sub" style="width:100%" ${lines.length?'':'disabled'}>Submit order</button></aside></div>`}
+const LBL={Pending:'Given to chef',Preparing:'Preparing',Ready:'Ready',Received:'Given to salesperson',Served:'Given to customer'};
+const ORDER=['Pending','Preparing','Ready','Received','Served'];
+function actions(o){
+  if(o.tmp)return '<div class="row"><small class="hint">Sending…</small></div>';
+  let h='';
+  if(me.role==='salesperson'){
+    h=o.status==='Received'?`<button class="gold" data-a="st" data-id="${o.id}" data-s="Served">✔ Given to customer</button>`:`<small style="color:var(--mute)">${o.status==='Served'?'Completed':'Waiting for chef…'}</small>`;
+    h+=`<button class="alt" data-a="bill" data-id="${o.id}">🖨 Print bill</button>`;
+  }else if(me.role==='admin'){
+    h=`<button class="alt" data-a="bill" data-id="${o.id}">🖨 Print bill</button>`;
+    if(o.status==='Served')h+=`<button class="del" data-a="delorder" data-id="${o.id}">Delete</button>`;
+  }else{
+    const cur=ORDER.indexOf(o.status);
+    h=[['Preparing','Preparing'],['Ready','Ready'],['Received','Given to salesperson']].map(([s,t])=>{const k=ORDER.indexOf(s);
+      return cur>=k?`<button class="alt" disabled>✓ ${t}</button>`:`<button class="${cur===k-1?'gold':'alt'}" data-a="st" data-id="${o.id}" data-s="${s}" ${cur===k-1?'':'disabled'}>${t}</button>`}).join('');
+  }
+  return `<div class="row">${h}</div>`;
+}
+function ordersView(list,title){
+  return `<h2 style="margin-bottom:12px">${title}</h2><div class="grid">${list.map(o=>`<div class="card"><div class="row" style="justify-content:space-between"><h3>Table ${esc(o.table_no)}</h3><span class="st ${o.status}">${LBL[o.status]}</span></div>
+  <small style="color:var(--mute)">Order #${o.id} · ${whenFull(o.created_at)}</small>
+  <div style="margin:10px 0">${o.items.map(i=>`<div class="line"><span>${i.q} × ${esc(i.name)}</span><span>${inr(i.price*i.q)}</span></div>`).join('')}<div class="line"><b>Total</b><b>${inr(o.items.reduce((s,i)=>s+i.price*i.q,0))}</b></div></div>
+  ${actions(o)}</div>`).join('')||'<div class="empty">No orders yet. They appear here instantly.</div>'}</div>`}
+function historyView(){
+  const h=orders.filter(o=>o.status==='Served'),sum=h.reduce((s,o)=>s+tot(o),0);
+  return `<h2 style="margin-bottom:12px">Order history</h2>
+  <div class="sum"><div class="card">Completed orders<br><b>${h.length}</b></div><div class="card">Total sales<br><b>${inr(sum)}</b></div></div>
+  <div class="bar"><button class="del" id="clr" ${h.length?'':'disabled'}>🗑 Delete all history</button><small style="color:var(--mute)">Only completed orders are deleted. Ongoing orders are never touched.</small></div>
+  ${ordersView(h,'').replace(/^<h2[^>]*><\/h2>/,'')}`}
+function statusMsg(o){const t='Table '+o.table_no;return {Pending:t+' moved back to the chef',Preparing:'👨‍🍳 '+t+' is being prepared',Ready:'✅ '+t+' is ready — collect from chef',Received:'📦 '+t+' given to salesperson — collect it',Served:'🍽️ '+t+' given to customer'}[o.status]}
+
+/* ---------- bill printing (any printer connected to this device) ---------- */
+const SHOP={name:'Bakers Delight',addr:'Your address · Phone',tax:0,footer:'Thank you! Visit again'}; // tax = GST % (0 = no tax line)
+function printBill(id){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  const sub=tot(o),tax=sub*SHOP.tax/100,d=new Date(o.created_at);
+  const rows=o.items.map(i=>`<tr><td>${esc(i.name)}<br>${i.q} × ${i.price}</td><td class="r">${(i.price*i.q).toFixed(2)}</td></tr>`).join('');
+  $('#bill').innerHTML=`<h1>${esc(SHOP.name)}</h1><div class="c">${esc(SHOP.addr)}</div><div class="hr"></div>
+  <div>Bill No: ${o.id}<br>Table: ${esc(o.table_no)}<br>Date: ${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div><div class="hr"></div>
+  <table>${rows}</table><div class="hr"></div>
+  <table><tr><td>Subtotal</td><td class="r">${sub.toFixed(2)}</td></tr>${SHOP.tax?`<tr><td>GST ${SHOP.tax}%</td><td class="r">${tax.toFixed(2)}</td></tr>`:''}
+  <tr class="b"><td>TOTAL</td><td class="r">Rs ${(sub+tax).toFixed(2)}</td></tr></table><div class="hr"></div><div class="c">${esc(SHOP.footer)}</div>`;
+  const t=document.title;document.title='Bill '+o.id;
+  window.onafterprint=()=>{document.title=t;$('#bill').innerHTML='';window.onafterprint=null};
+  setTimeout(()=>window.print(),80);
+}
+
+/* ---------- actions ---------- */
+function bind(){
+  const f=$('#addf');if(f)f.onsubmit=async e=>{e.preventDefault();const btn=f.querySelector('button');btn.classList.add('busy');btn.textContent='Adding…';
+    try{const r=await api('POST','/menu',{name:f.n.value.trim(),price:+f.p.value});
+      if(newImg){try{await sendPhoto(r.id,newImg.blob)}catch(x){notify('Dish added, but photo failed: '+x.message)}newImg=null}
+      f.reset();await loadMenu();keep();notify('Dish added')}catch(x){notify(x.message);btn.classList.remove('busy');btn.textContent='Add dish'}};
+  if($('#newph'))$('#newph').onclick=()=>{imgTarget='new';$('#imgf').click()};
+  if($('#newphx'))$('#newphx').onclick=()=>{newImg=null;keep()};
+  if($('#xl')){$('#xl').onclick=()=>$('#xf').click();$('#xf').onchange=excelIn;$('#tp').onclick=tmpl}
+  document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a,+b.dataset.id,b.dataset.s));
+  if($('#sub'))$('#sub').onclick=submit;
+  if($('#clr'))$('#clr').onclick=async()=>{if(!confirm('Permanently delete ALL completed order history? This cannot be undone.'))return;
+    try{const r=await api('DELETE','/orders/history');await loadOrders();notify('Deleted '+r.deleted+' orders');keep()}catch(x){notify(x.message)}};
+}
+async function act(a,id,s){
+  const m=menu.find(x=>x.id===id);
+  try{
+    if(a==='tog'&&can('menu')){const was=m.available;m.available=was?0:1;keep();
+      try{await api('PUT','/menu/'+id,{available:!was})}catch(x){m.available=was;keep();throw x}}
+    else if(a==='del'&&can('menu')){if(!confirm('Delete '+m.name+'?'))return;await api('DELETE','/menu/'+id);delete cart[id]}
+    else if(a==='edit'&&can('menu')){const n=prompt('Dish name',m.name);if(n===null)return;const p=prompt('Price (₹)',m.price);if(p===null)return;
+      if(!n.trim()||!(+p>0))return notify('Enter a name and a price above 0');await api('PUT','/menu/'+id,{name:n.trim(),price:+p})}
+    else if(a==='photo'&&can('menu')){imgTarget=id;$('#imgf').click()}
+    else if(a==='rmphoto'&&can('menu')){if(!confirm('Remove the photo of '+m.name+'?'))return;await api('DELETE','/menu/'+id+'/image');m.image_v=0;keep()}
+    else if(a==='inc'&&can('select')){cart[id]=(cart[id]||0)+1;return keep()}
+    else if(a==='dec'&&can('select')){cart[id]=Math.max(0,(cart[id]||0)-1);return keep()}
+    else if(a==='bill'&&can('bill'))return printBill(id);
+    else if(a==='delorder'&&can('history')){if(!confirm('Delete order #'+id+' permanently?'))return;await api('DELETE','/orders/'+id);orders=orders.filter(x=>x.id!==id);notify('Order deleted');return keep()}
+    else if(a==='st'){
+      // instant: show the new status the moment the button is tapped, confirm with the server in the background
+      const o=orders.find(x=>x.id===id);if(!o)return;const prev=o.status;if(prev===s)return;
+      o.status=s;keep();
+      try{await api('PUT','/orders/'+id+'/status',{status:s})}
+      catch(x){o.status=prev;keep();throw x}}
+  }catch(x){notify(x.message)}
+}
+async function submit(){
+  const t=$('#tbl').value.trim();if(!t){notify('Enter a table number first');$('#tbl').focus();return}
+  const items=Object.entries(cart).filter(([,q])=>q>0).map(([id,q])=>({id:+id,q}));
+  if(!items.length)return;
+  // instant: show the order in "My orders" immediately, replace it with the real one when the server answers
+  const old=cart,tid='tmp'+(++tmpN);
+  const fake={id:tid,tmp:tid,table_no:t,status:'Pending',created_at:new Date().toISOString(),created_by:me.id,
+    items:items.map(i=>{const d=menu.find(x=>x.id===i.id);return{name:d?d.name:'?',price:d?d.price:0,q:i.q}})};
+  orders.unshift(fake);cart={};if(me.role==='salesperson')tab='mine';render();notify('Order sent to the kitchen');
+  try{
+    const o=await api('POST','/orders',{table_no:t,items});
+    orders=orders.filter(x=>x.tmp!==tid);if(!orders.some(x=>x.id===o.id))orders.unshift(o);keep();
+  }catch(x){
+    orders=orders.filter(x=>x.tmp!==tid);cart=old;tab='order';render();$('#tbl').value=t;notify(x.message)}
+}
+function shrink(file){return new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{const k=Math.min(1,720/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
+    c.toBlob(b=>b?ok(b):no(new Error('Could not read that image')),'image/jpeg',.82)};
+  im.onerror=()=>{URL.revokeObjectURL(u);no(new Error('Could not read that image'))};im.src=u})}
+async function sendPhoto(id,blob){
+  const fd=new FormData();fd.append('image',blob,'dish.jpg');
+  const r=await fetch('/api/menu/'+id+'/image',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Upload failed');return d}
+$('#imgf').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;const target=imgTarget;
+  try{
+    const blob=await shrink(f);
+    if(target==='new'){newImg={blob,url:URL.createObjectURL(blob)};keep()}
+    else{notify('Uploading photo…');const d=await sendPhoto(target,blob);const m=menu.find(x=>x.id===target);if(m)m.image_v=d.image_v;keep();notify('Photo saved')}
+  }catch(x){notify(x.message)}};
+async function tmpl(){
+  try{const r=await fetch('/api/menu-template',{headers:{Authorization:'Bearer '+token}});const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download='menu-template.xlsx';a.click()}catch(x){notify('Download failed')}
+}
+async function excelIn(e){
+  const f=e.target.files[0];if(!f)return;
+  const fd=new FormData();fd.append('file',f);
+  try{
+    const r=await fetch('/api/menu-upload',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});const d=await r.json();
+    if(!r.ok)throw new Error(d.error);
+    notify(d.added?`Added ${d.added} dishes${d.skipped?`, skipped ${d.skipped}`:''}`:`Nothing to add (${d.skipped} rows skipped). Check the columns: name, price.`);
+  }catch(x){notify(x.message||'Upload failed')}
+  e.target.value='';
+}
+(()=>{const E=['🥐','🍞','🧁','🍰','🥖','🍪','🍩','🥧','🎂','🥨'],bg=$('#bg'),N=matchMedia('(max-width:700px)').matches?14:26;
+  for(let i=0;i<N;i++){const e=document.createElement('span');e.textContent=E[i%E.length];
+    e.style.cssText=`--x:${Math.round(Math.random()*96)}%;--s:${28+Math.round(Math.random()*40)}px;--d:${16+Math.round(Math.random()*18)}s;--dl:-${Math.round(Math.random()*30)}s`;bg.appendChild(e)}})();
+if(token)api('GET','/me').then(enter).catch(()=>localStorage.removeItem('tk'));
+document.querySelectorAll('.wave').forEach(el=>{const t=el.textContent;el.setAttribute('aria-label',t);el.innerHTML=[...t].map((c,i)=>`<span aria-hidden="true" style="--i:${i}">${c===' '?'&nbsp;':c}</span>`).join('')});
+</script>
+</body>
+</html>
