@@ -4,8 +4,22 @@ const express = require('express'), http = require('http'), { Server } = require
   bcrypt = require('bcryptjs'), jwt = require('jsonwebtoken'), multer = require('multer'), XLSX = require('xlsx');
 
 const app = express(), srv = http.createServer(app), io = new Server(srv);
-const SECRET = process.env.JWT_SECRET || 'change-me';
-const pool = mysql.createPool({ host: process.env.DB_HOST || 'localhost', user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '', database: process.env.DB_NAME || 'saffron_table', decimalNumbers: true, connectionLimit: 10, charset: 'utf8mb4' });
+// Reads TiDB Cloud names (TIDB_HOST, TIDB_PORT, TIDB_USER, TIDB_PASSWORD, TIDB_DATABASE, TIDB_ENABLE_SSL)
+// and also the older DB_* names, so either style of .env works.
+const E = (a, b, d) => process.env[a] || process.env[b] || d;
+const DB = E('TIDB_DATABASE', 'DB_NAME', 'saffron_table');
+const useSsl = [process.env.TIDB_ENABLE_SSL, process.env.DB_SSL].some(v => String(v).toLowerCase() === 'true');
+const DBCFG = {
+  host: E('TIDB_HOST', 'DB_HOST', 'localhost'),
+  port: Number(E('TIDB_PORT', 'DB_PORT', 3306)),
+  user: E('TIDB_USER', 'DB_USER', 'root'),
+  password: E('TIDB_PASSWORD', 'DB_PASSWORD', ''),
+  charset: 'utf8mb4',
+  ssl: useSsl ? { minVersion: 'TLSv1.2', rejectUnauthorized: process.env.DB_SSL_INSECURE !== 'true' } : undefined   // TiDB Cloud requires TLS
+};
+const SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) console.log('! JWT_SECRET is not set in .env - using a temporary one (everyone is signed out whenever the server restarts). Add JWT_SECRET=any-long-random-text');
+const pool = mysql.createPool({ ...DBCFG, database: DB, decimalNumbers: true, connectionLimit: 10, enableKeepAlive: true });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 app.use(express.json());
@@ -121,21 +135,28 @@ io.use((sock, next) => { try { sock.user = jwt.verify(sock.handshake.auth.token,
 io.on('connection', sock => { sock.join('role:' + sock.user.role); sock.join('user:' + sock.user.id) });
 
 /* ---------- database setup (runs automatically on every start; safe to repeat) ---------- */
-const DB = process.env.DB_NAME || 'saffron_table';
 const DEFAULT_USERS = [['Admin', 'admin@saffron.com', 'admin123', 'admin'], ['Salesperson', 'salesperson@saffron.com', 'sales123', 'salesperson'], ['Chef', 'chef@saffron.com', 'chef123', 'chef']];
 async function initDb() {
-  const c = await mysql.createConnection({ host: process.env.DB_HOST || 'localhost', user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '', charset: 'utf8mb4' });
+  const c = await mysql.createConnection(DBCFG);
   try {
-    await c.query(`CREATE DATABASE IF NOT EXISTS \`${DB}\` CHARACTER SET utf8mb4`);
+    // Locally this creates the database. On cloud hosts you usually can't create one
+    // (the provider already gave you one), so a failure here is ignored.
+    try { await c.query(`CREATE DATABASE IF NOT EXISTS \`${DB}\` CHARACTER SET utf8mb4`) } catch (e) { console.log('Skipping CREATE DATABASE (' + e.code + ') - using existing database "' + DB + '"') }
     await c.query(`USE \`${DB}\``);
     await c.query(`CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(60) NOT NULL, email VARCHAR(120) NOT NULL UNIQUE, password_hash VARCHAR(100) NOT NULL, role ENUM('admin','salesperson','chef') NOT NULL)`);
     await c.query(`CREATE TABLE IF NOT EXISTS menu_items (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(40) NOT NULL, price DECIMAL(10,2) NOT NULL, emoji VARCHAR(16) DEFAULT '🍽️', available TINYINT(1) NOT NULL DEFAULT 1)`);
     await c.query(`CREATE TABLE IF NOT EXISTS orders (id INT AUTO_INCREMENT PRIMARY KEY, table_no VARCHAR(10) NOT NULL, items JSON NOT NULL, status ENUM('Pending','Preparing','Ready','Received','Served') NOT NULL DEFAULT 'Pending', waiter_name VARCHAR(60), created_by INT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (created_by) REFERENCES users(id))`);
-    // upgrade older databases (waiter → salesperson, new statuses)
-    await c.query(`ALTER TABLE users MODIFY role ENUM('admin','waiter','salesperson','chef') NOT NULL`);
-    await c.query(`UPDATE users SET role='salesperson' WHERE role='waiter'`);
-    await c.query(`ALTER TABLE users MODIFY role ENUM('admin','salesperson','chef') NOT NULL`);
-    await c.query(`ALTER TABLE orders MODIFY status ENUM('Pending','Preparing','Ready','Received','Served') NOT NULL DEFAULT 'Pending'`);
+    // Upgrade older databases only when needed. Each step is optional, so a database that
+    // cannot do it (e.g. TiDB does not allow re-ordering ENUM values) never stops the app.
+    const colType = async (t, col) => { const [[r]] = await c.query('SELECT COLUMN_TYPE AS t FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?', [DB, t, col]); return r ? String(r.t) : '' };
+    const tryRun = async sql => { try { await c.query(sql) } catch (e) { console.log('Skipped optional upgrade step: ' + e.message) } };
+    if ((await colType('users', 'role')).includes('waiter')) {
+      await tryRun(`ALTER TABLE users MODIFY role ENUM('admin','waiter','salesperson','chef') NOT NULL`);
+      await tryRun(`UPDATE users SET role='salesperson' WHERE role='waiter'`);
+      await tryRun(`ALTER TABLE users MODIFY role ENUM('admin','salesperson','chef') NOT NULL`);
+    }
+    if (!(await colType('orders', 'status')).includes('Served'))
+      await tryRun(`ALTER TABLE orders MODIFY status ENUM('Pending','Preparing','Ready','Received','Served') NOT NULL DEFAULT 'Pending'`);
     const [[old]] = await c.query(`SELECT COUNT(*) n FROM users WHERE email='waiter@saffron.com'`);
     const [[neu]] = await c.query(`SELECT COUNT(*) n FROM users WHERE email='salesperson@saffron.com'`);
     if (old.n && !neu.n) await c.query(`UPDATE users SET email='salesperson@saffron.com' WHERE email='waiter@saffron.com'`);
@@ -158,6 +179,6 @@ initDb().then(() => {
     for (const list of Object.values(os.networkInterfaces())) for (const n of list || []) if (n.family === 'IPv4' && !n.internal) console.log(`  Phones (same Wi-Fi): http://${n.address}:${PORT}`);
   });
 }).catch(e => {
-  const hint = { ER_ACCESS_DENIED_ERROR: 'Wrong MySQL user or password. Fix DB_USER / DB_PASSWORD in the .env file.', ECONNREFUSED: 'MySQL is not running. Start the "MySQL80" service (Win+R → services.msc) and try again.', ENOTFOUND: 'DB_HOST in .env is wrong.' }[e.code];
+  const hint = { ER_ACCESS_DENIED_ERROR: 'Wrong database user or password. Fix TIDB_USER / TIDB_PASSWORD.', ER_BAD_DB_ERROR: 'Database "' + DB + '" does not exist. Create it, or set TIDB_DATABASE to a database that exists (the TiDB Cloud default database is called test).', ECONNREFUSED: 'Cannot reach MySQL at ' + DBCFG.host + ':' + DBCFG.port + '. Locally: start the MySQL service. On hosting: check TIDB_HOST / TIDB_PORT.', ETIMEDOUT: 'MySQL host timed out. Check TIDB_HOST / TIDB_PORT and the provider firewall/allowlist.', ENOTFOUND: 'TIDB_HOST is wrong (host name not found).', HANDSHAKE_SSL_ERROR: 'SSL problem. Make sure TIDB_ENABLE_SSL=true is in .env.', ER_NOT_SUPPORTED_AUTH_MODE: 'MySQL auth mode not supported by the driver.' }[e.code];
   console.error('\n✖ Could not set up the database: ' + e.message + (hint ? '\n  → ' + hint : '')); process.exit(1);
 });
